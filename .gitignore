@@ -1,0 +1,18 @@
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist/
+
+# Environment files (credentials)
+.env
+
+# TypeScript
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+
+# Global resource symlinks (managed by claude-code-cli)
+.claude/*/global
