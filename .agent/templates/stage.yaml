@@ -1,0 +1,30 @@
+# Stage tracking template for init_task command
+# Placeholders: {timestamp}, {branch_name}
+
+workflow:
+  - task_created
+  - planning
+  - decompose          # For complex tasks needing multiple iterations
+  - implement          # For simple tasks (single iteration)
+  - implementation_iteration  # For complex tasks (can repeat)
+  - review
+  - review_fix
+  - review_human
+  - done
+
+stage: task_created
+next_stage: planning
+round: 1
+updated: "{timestamp}"
+branch: "{branch_name}"
+
+log_files: []
+
+iterations:
+  planned:
+    -
+  done:
+    -
+
+notes: |
+  Created via init_task command

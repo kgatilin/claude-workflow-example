@@ -6,5 +6,3 @@ my-mcp-server .env
 ```
 
 Use WebSearch tool to find the latest Atlassian API documentation for getting a Jira issue by its key. Use the documentation to implement the `get_jira_issue` tool.
-
-Read @docs/mcp_guide.md for MCP server implementation details and best practices.

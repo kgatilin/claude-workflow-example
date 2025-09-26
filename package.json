@@ -1,7 +1,7 @@
 {
-  "name": "@local/mcp-server-criteo-outlook",
+  "name": "@local/mcp-server-jira",
   "bin": {
-    "mcp-server-criteo-outlook": "dist/index.js"
+    "mcp-server-jira": "dist/index.js"
   },
   "files": [
     "dist"
@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.5",
-    "dotenv": "^17.2.2"
+    "dotenv": "^17.2.2",
+    "zod": "^3.22.0"
   }
 }
