@@ -419,6 +419,371 @@ return {
 };
 ```
 
+## Testing Strategy Guide
+
+Comprehensive testing is crucial for MCP server reliability. This section covers testing frameworks, patterns, and best practices specific to MCP applications.
+
+### Testing Framework Recommendations (2024)
+
+#### Vitest for New Projects (Recommended)
+For new TypeScript MCP projects, **Vitest is the recommended choice**:
+- **Zero configuration** TypeScript support out of the box
+- **Native ESM support** without complex setup
+- **Better performance** than Jest for modern applications
+- **Compatible with Jest APIs** for easy migration
+
+#### Jest for Existing Large Codebases
+Continue using Jest if you have established large codebases, unless migration benefits outweigh switching costs.
+
+### MCP Testing Architecture
+
+#### Test Structure Overview
+```
+tests/
+├── unit/
+│   ├── tools/           # Unit tests for individual tools
+│   ├── schemas/         # Zod schema validation tests
+│   ├── services/        # Service layer tests
+│   └── utils/           # Utility function tests
+├── integration/
+│   ├── server.test.ts   # Server startup and shutdown tests
+│   ├── transport.test.ts # Transport layer tests
+│   └── e2e-tools.test.ts # End-to-end tool execution tests
+└── fixtures/
+    ├── valid-inputs/    # Valid test data
+    ├── invalid-inputs/  # Invalid test data for error cases
+    └── mocks/           # Mock responses and data
+```
+
+### Unit Testing Patterns
+
+#### 1. Testing MCP Tool Logic
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { registerCalculatorTool } from '../src/tools/calculator.js';
+
+describe('Calculator Tool', () => {
+  let mockServer: any;
+  let toolHandler: Function;
+
+  beforeEach(() => {
+    mockServer = {
+      registerTool: vi.fn((name, definition, handler) => {
+        toolHandler = handler;
+      })
+    };
+    registerCalculatorTool(mockServer);
+  });
+
+  it('should perform addition correctly', async () => {
+    const input = { operation: 'add', a: 5, b: 3 };
+    const result = await toolHandler(input);
+
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: '5 add 3 = 8'
+      }]
+    });
+  });
+
+  it('should throw McpError for division by zero', async () => {
+    const input = { operation: 'divide', a: 10, b: 0 };
+
+    await expect(toolHandler(input)).rejects.toThrow(McpError);
+    await expect(toolHandler(input)).rejects.toThrow('Division by zero is not allowed');
+  });
+
+  it('should handle invalid operation gracefully', async () => {
+    const input = { operation: 'invalid', a: 5, b: 3 };
+
+    await expect(toolHandler(input)).rejects.toThrow(McpError);
+  });
+});
+```
+
+#### 2. Zod Schema Validation Testing
+```typescript
+import { describe, it, expect } from 'vitest';
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  name: z.string().min(2).describe("User full name"),
+  age: z.number().positive().describe("User age in years"),
+  email: z.string().email().describe("User email address")
+});
+
+describe('User Schema Validation', () => {
+  describe('Valid inputs', () => {
+    it('should parse valid user data', () => {
+      const validData = { name: 'John Doe', age: 30, email: 'john@example.com' };
+      const result = UserSchema.safeParse(validData);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual(validData);
+      }
+    });
+  });
+
+  describe('Invalid inputs', () => {
+    it('should fail for invalid email format', () => {
+      const invalidData = { name: 'John', age: 30, email: 'invalid-email' };
+      const result = UserSchema.safeParse(invalidData);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors[0].path).toEqual(['email']);
+        expect(result.error.errors[0].code).toBe('invalid_string');
+      }
+    });
+
+    it('should fail for negative age', () => {
+      const invalidData = { name: 'John', age: -5, email: 'john@example.com' };
+
+      expect(() => UserSchema.parse(invalidData)).toThrow(z.ZodError);
+    });
+
+    it('should provide detailed error messages', () => {
+      const invalidData = { name: 'J', age: 30, email: 'john@example.com' };
+      const result = UserSchema.safeParse(invalidData);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors[0].message).toContain('at least 2 characters');
+      }
+    });
+  });
+});
+```
+
+#### 3. External API Mocking
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { registerWeatherTool } from '../src/tools/weather.js';
+
+// Mock fetch globally
+global.fetch = vi.fn();
+
+describe('Weather Tool with API', () => {
+  let mockServer: any;
+  let toolHandler: Function;
+
+  beforeEach(() => {
+    mockServer = {
+      registerTool: vi.fn((name, definition, handler) => {
+        toolHandler = handler;
+      })
+    };
+    registerWeatherTool(mockServer);
+    vi.clearAllMocks();
+  });
+
+  it('should fetch weather data successfully', async () => {
+    const mockResponse = {
+      ok: true,
+      json: () => Promise.resolve({
+        temperature: 22,
+        condition: 'sunny',
+        location: 'New York'
+      })
+    };
+
+    (fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+    const result = await toolHandler({ location: 'New York', unit: 'celsius' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('New York')
+    );
+    expect(result.content[0].text).toContain('22');
+  });
+
+  it('should handle API errors gracefully', async () => {
+    const mockResponse = {
+      ok: false,
+      status: 404,
+      statusText: 'Not Found'
+    };
+
+    (fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+    await expect(toolHandler({ location: 'InvalidCity' }))
+      .rejects.toThrow('Location not found');
+  });
+});
+```
+
+### Integration Testing Patterns
+
+#### 1. Server Lifecycle Testing
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+describe('MCP Server Integration', () => {
+  let server: McpServer;
+
+  beforeEach(() => {
+    server = new McpServer({
+      name: "test-server",
+      version: "1.0.0"
+    });
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await server.close();
+    }
+  });
+
+  it('should start and register tools successfully', async () => {
+    // Register a simple test tool
+    server.registerTool(
+      'test_tool',
+      {
+        title: 'Test Tool',
+        description: 'A simple test tool',
+        inputSchema: {}
+      },
+      async () => ({ content: [{ type: 'text', text: 'test' }] })
+    );
+
+    // Verify server can start
+    expect(() => server).not.toThrow();
+  });
+
+  it('should handle tool registration errors', () => {
+    expect(() => {
+      server.registerTool(
+        'invalid_tool',
+        null as any, // Invalid definition
+        async () => ({})
+      );
+    }).toThrow();
+  });
+});
+```
+
+#### 2. End-to-End Tool Testing
+```typescript
+import { describe, it, expect } from 'vitest';
+import { execSync } from 'child_process';
+import { join } from 'path';
+
+describe('E2E MCP Server Tests', () => {
+  const serverPath = join(__dirname, '../dist/index.js');
+
+  it('should respond to MCP Inspector requests', () => {
+    // This test requires the server to be built
+    const command = `npx @modelcontextprotocol/inspector ${serverPath} --list-tools`;
+
+    expect(() => {
+      const result = execSync(command, { encoding: 'utf-8', timeout: 5000 });
+      expect(result).toContain('test_tool');
+    }).not.toThrow();
+  }, 10000);
+});
+```
+
+### Mocking Best Practices
+
+#### 1. Keep Mocks Close to Tests
+```typescript
+// ✅ Good: Mock defined in test setup
+describe('Weather API Tool', () => {
+  beforeEach(() => {
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      if (url.includes('weather')) {
+        return mockWeatherResponse;
+      }
+      throw new Error('Unexpected API call');
+    });
+  });
+
+  // Tests here...
+});
+```
+
+#### 2. Type-Safe Mocking
+```typescript
+import { vi } from 'vitest';
+import type { WeatherAPI } from '../src/services/weather.js';
+
+// ✅ Type-safe mock
+const mockWeatherAPI: WeatherAPI = {
+  getCurrentWeather: vi.fn(),
+  getForecast: vi.fn()
+};
+
+// Usage in tests
+vi.mocked(mockWeatherAPI.getCurrentWeather).mockResolvedValue({
+  temperature: 25,
+  condition: 'sunny'
+});
+```
+
+#### 3. Module-based Mocking for ESM
+```typescript
+// For ESM projects, use module-based mocking
+vi.mock('../src/services/external-api.js', () => ({
+  ExternalAPI: vi.fn().mockImplementation(() => ({
+    fetchData: vi.fn().mockResolvedValue({ success: true })
+  }))
+}));
+```
+
+### Testing Best Practices Summary
+
+#### 1. Test Structure
+- **Unit tests**: Test individual tool logic and schema validation
+- **Integration tests**: Test server lifecycle and tool registration
+- **E2E tests**: Test complete MCP protocol interactions
+
+#### 2. Coverage Priorities
+- All tool handlers with valid and invalid inputs
+- Schema validation for all possible input combinations
+- Error handling paths and McpError throwing
+- External API failure scenarios
+
+#### 3. Common Pitfalls to Avoid
+- **Don't test implementation details**: Focus on behavior, not internal structure
+- **Avoid auto-magic mocks**: Keep mocks explicit and close to tests
+- **Don't ignore error paths**: Test all error conditions thoroughly
+- **Avoid flaky tests**: Use deterministic data and proper async handling
+
+#### 4. Performance Testing
+```typescript
+describe('Tool Performance', () => {
+  it('should handle large datasets efficiently', async () => {
+    const startTime = Date.now();
+    const largeInput = generateLargeTestData(10000);
+
+    await toolHandler(largeInput);
+
+    const duration = Date.now() - startTime;
+    expect(duration).toBeLessThan(5000); // 5 second timeout
+  });
+});
+```
+
+#### 5. Using MCP Inspector for Development
+```bash
+# Interactive testing during development
+npx @modelcontextprotocol/inspector dist/index.js
+
+# Automated tool validation
+npx @modelcontextprotocol/inspector dist/index.js --validate
+
+# List all available tools
+npx @modelcontextprotocol/inspector dist/index.js --list-tools
+```
+
+This comprehensive testing strategy ensures your MCP server is reliable, maintainable, and ready for production deployment.
+
 ## Environment Configuration Pattern
 
 ```typescript
