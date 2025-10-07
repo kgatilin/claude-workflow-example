@@ -9,11 +9,18 @@ BACKLOG_INPUT="$1"
 
 # Parse input path
 if [[ "$BACKLOG_INPUT" == @* ]]; then
+    # Strip @ prefix
     FILEPATH="${BACKLOG_INPUT:1}"
 else
-    FILEPATH=".agent/backlog/$BACKLOG_INPUT"
-    [[ "$FILEPATH" != *.md ]] && FILEPATH="$FILEPATH.md"
+    FILEPATH="$BACKLOG_INPUT"
+    # Only prepend .agent/backlog/ if path doesn't already contain it
+    if [[ "$FILEPATH" != *.agent/backlog/* ]]; then
+        FILEPATH=".agent/backlog/$FILEPATH"
+    fi
 fi
+
+# Add .md extension if missing
+[[ "$FILEPATH" != *.md ]] && FILEPATH="$FILEPATH.md"
 
 # Extract task name
 TASK_NAME=$(basename "$FILEPATH" .md)
@@ -40,8 +47,17 @@ cp .agent/templates/stage.yaml ".agent/tasks/$TASK_NAME/stage.yaml"
 
 # Update template with current values
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-sed -i '' "s/{timestamp}/$TIMESTAMP/g" ".agent/tasks/$TASK_NAME/stage.yaml"
-sed -i '' "s/{branch_name}/feature\\/$TASK_NAME/g" ".agent/tasks/$TASK_NAME/stage.yaml"
+
+# Detect OS for sed compatibility
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS requires empty string for in-place edit
+  sed -i '' "s/{timestamp}/$TIMESTAMP/g" ".agent/tasks/$TASK_NAME/stage.yaml"
+  sed -i '' "s/{branch_name}/feature\\/$TASK_NAME/g" ".agent/tasks/$TASK_NAME/stage.yaml"
+else
+  # Linux sed doesn't need the empty string
+  sed -i "s/{timestamp}/$TIMESTAMP/g" ".agent/tasks/$TASK_NAME/stage.yaml"
+  sed -i "s/{branch_name}/feature\\/$TASK_NAME/g" ".agent/tasks/$TASK_NAME/stage.yaml"
+fi
 
 # Output success
 echo "✅ Branch: feature/$TASK_NAME"
