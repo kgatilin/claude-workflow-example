@@ -36,21 +36,52 @@ $ARGUMENTS
 ## Your Review Process
 
 <ultrathink>
-I need to perform a comprehensive review using parallel analysis for efficiency:
-1. Load context first (foundational step)
-2. Launch parallel Task agents for different review aspects
-3. Synthesize all findings into comprehensive review
+I need to determine if this is a first review or a follow-up review of fixes:
+1. Check for existing review files in the current task directory
+2. If no reviews exist: Perform comprehensive parallel review
+3. If reviews exist: Perform focused fix verification
+4. This branching ensures efficiency - parallel analysis for first review, focused single-task for fix reviews
 </ultrathink>
 
-### Step 1: Understand the Context
+### Step 1: Determine Review Type
 
-First, load all necessary context to understand the full picture:
+<think>
+The review approach should differ based on whether this is the initial review or a subsequent fix review:
+- **First Review**: No existing review files → Comprehensive parallel analysis needed
+- **Fix Review**: Existing review files found → Focused verification of addressed issues only
+
+I need to check the current task directory for existing review files (*_review.md) to determine which path to take.
+</think>
+
+**Check for existing reviews:**
+
+Use Bash or Glob to check if any `*_review.md` files exist in the current task directory (available from task context).
+
+**Branch based on findings:**
+- **No existing review files**: This is the **first review** → Proceed to Step 2 (Comprehensive Parallel Review)
+- **Existing review files found**: This is a **fix review** → Proceed to Step 3 (Focused Fix Verification)
+
+### Step 2: First Review - Comprehensive Parallel Analysis
+
+**Only execute this step if no existing review files were found.**
+
+<ultrathink>
+This is the first review, so I need comprehensive analysis using parallel Task agents:
+1. Load all necessary context
+2. Launch 5 specialized review agents simultaneously
+3. Synthesize findings into structured review
+4. Run final verification
+</ultrathink>
+
+#### Step 2.1: Understand the Context
+
+Load all necessary context to understand the full picture:
 - Task definition and acceptance criteria
 - Implementation plan and architecture decisions
 - Current codebase state and review comments
 - Additional review focus areas from arguments
 
-### Step 2: Launch Parallel Review Analysis
+#### Step 2.2: Launch Parallel Review Analysis
 
 <think>
 For maximum efficiency, I'll launch multiple specialized review agents simultaneously:
@@ -101,18 +132,9 @@ Analyze security and performance focusing on:
 - Resource usage patterns
 - Error handling security implications
 
-### Step 3: Synthesize Review Findings
+#### Step 2.3: Synthesize Review Findings
 
-After all parallel reviews complete, combine findings into a comprehensive assessment.
-
-## Implementation Steps
-
-Execute this review process:
-
-1. **Load Context**: Read task files, plan, and identify review comments
-2. **Launch Parallel Reviews**: Use Task tool to execute 5 specialized reviews simultaneously
-3. **Synthesize Results**: Combine all findings into structured output
-4. **Run Final Verification**: Execute tests and validation
+**After all parallel reviews complete**, combine findings into a comprehensive assessment.
 
 ### Parallel Task Execution
 
@@ -154,26 +176,102 @@ I need to execute all 5 Task calls in a single message to achieve true paralleli
 
 Use the Task tool to launch all 5 review agents at once. After all agents complete, collect their findings and synthesize into a comprehensive review.
 
-### Synthesis Process
+**After completing parallel reviews, proceed to Step 4 (Final Verification and Synthesis).**
 
-After all parallel reviews complete, analyze and categorize findings:
+### Step 3: Subsequent Review - Focused Fix Verification
+
+**Only execute this step if existing review files were found.**
+
+<think>
+This is a fix review - a previous review identified issues that needed to be addressed. My job is to verify that those specific fixes have been implemented correctly, not to perform another comprehensive review.
+
+I should:
+1. Load the most recent review file to understand what needed to be fixed
+2. Launch a single focused Task agent to verify fixes
+3. Assess if fixes adequately address the issues
+4. Determine if implementation is now ready or needs more work
+</think>
+
+#### Step 3.1: Load Previous Review
+
+Read the most recent `*_review.md` file from the current task directory to understand:
+- What issues were identified as "Must Be Fixed"
+- What specific actions were required
+- What acceptance criteria were incomplete
+- What the previous review decision was
+
+#### Step 3.2: Launch Focused Fix Verification Agent
+
+Instead of parallel comprehensive analysis, launch a **single Task agent** focused solely on verifying fixes:
+
+**Fix Verification Agent:**
+
+Use Task tool to launch:
+
+- **Description**: "Fix verification review"
+- **Prompt**: "You are a fix verification specialist. A previous review identified issues that needed to be fixed. Your job is to verify that each required fix has been properly implemented.
+
+Previous Review Context:
+- Read the most recent review file from the task directory
+- Identify all items listed under '🚫 Issues That Must Be Fixed'
+- Note all items in '📋 Required Actions'
+
+Your Verification Process:
+1. For each identified issue, determine:
+   - Has the issue been addressed?
+   - Is the fix complete and correct?
+   - Are there any new issues introduced by the fix?
+2. Check if any new review comments (//Review:) were added
+3. Verify tests pass and cover the fixed areas
+4. Additional focus areas: $ARGUMENTS
+
+Return a detailed assessment:
+- List each previous issue with verification status (Fixed/Not Fixed/Partially Fixed)
+- Identify any new issues introduced by fixes
+- Provide clear recommendation: APPROVED or NEEDS MORE WORK
+- Include specific file:line references for any remaining issues"
+
+#### Step 3.3: Assess Fix Quality
+
+After the fix verification agent completes, analyze findings:
+- Are all critical issues from previous review resolved?
+- Were any new issues introduced?
+- Is additional work needed or can we proceed?
+
+**Proceed to Step 4 (Final Verification and Synthesis).**
+
+### Step 4: Final Verification and Synthesis
+
+**Execute this step regardless of which review path was taken (Step 2 or Step 3).**
+
+#### Synthesis Process
+
+Analyze and categorize findings from the review process:
 
 <ultrathink>
-Now I need to synthesize all the parallel review findings into a coherent comprehensive assessment. I should:
-1. Aggregate findings by severity across all review areas
-2. Identify overlapping issues mentioned by multiple agents
-3. Prioritize actions based on impact to project success
-4. Provide clear guidance on readiness to proceed
+I need to synthesize the review findings into a coherent comprehensive assessment. The approach differs slightly based on review type:
+
+**First Review (Step 2)**: Synthesize findings from 5 parallel review agents
+- Aggregate findings by severity across all review areas
+- Identify overlapping issues mentioned by multiple agents
+- Prioritize actions based on impact to project success
+
+**Fix Review (Step 3)**: Synthesize findings from single fix verification agent
+- Map fixed vs unfixed issues from previous review
+- Identify any new issues introduced
+- Assess readiness to proceed
+
+Both paths should result in clear guidance on readiness to proceed.
 </ultrathink>
 
 **Aggregation Strategy:**
-- Collect all findings from each review agent
+- Collect all findings from review agent(s) (5 parallel agents for first review, 1 focused agent for fix review)
 - Cross-reference to identify common themes
 - Apply binary classification: Must Fix vs Future Improvement
 - Prioritize based on impact to acceptance criteria and project success
 - Make clear APPROVED/REQUIRES FIXES decision
 
-### Final Verification
+#### Final Verification
 
 After synthesis, run verification checks:
 - Execute test suite to ensure all tests pass
@@ -181,15 +279,40 @@ After synthesis, run verification checks:
 - Verify any review comments have been addressed
 - Confirm feature works end-to-end as expected
 
-### Save Review Results
+#### Save Review Results
 
-After completing the review, save the complete assessment to the current task directory as `{iteration_number}_review.md` (e.g., `03_review.md`).
+After completing the review (regardless of whether it was a first review or fix review), save the complete assessment to the current task directory:
+
+**File naming:**
+- Determine the next iteration number based on existing review files
+- Save as `{iteration_number}_review.md` (e.g., `01_review.md` for first review, `02_review.md` for second review after fixes)
 
 Write the review document with all findings, assessments, and decisions to ensure traceability of review outcomes.
 
+**For fix reviews**, the review document should clearly reference the previous review and show which issues were resolved vs which remain.
+
 ## Review Output Format
 
-Structure the review document with binary classification:
+Structure the review document with binary classification.
+
+**For first reviews (comprehensive)**, include all sections below.
+
+**For fix reviews**, include all sections below but add a new section at the top:
+
+### 🔄 Fix Verification Summary (Fix Reviews Only)
+
+Reference to previous review and verification status:
+- **Previous Review**: Link or reference to the review file being addressed
+- **Previous Decision**: What the previous review required
+- **Issues Addressed**: List of issues from previous review with status
+  - ✅ Issue 1: [Description] - **Fixed** - [Evidence]
+  - ❌ Issue 2: [Description] - **Not Fixed** - [Details]
+  - ⚠️ Issue 3: [Description] - **Partially Fixed** - [Details]
+- **New Issues Introduced**: Any new problems created by the fixes
+
+---
+
+Then continue with standard review format:
 
 ### ✅ What's Working Well
 - Positive aspects of the implementation

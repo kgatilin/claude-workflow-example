@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
+    "test:mcp": "tsx scripts/mcp-test.ts",
     "lint": "eslint src/**/*.ts",
     "link": "npm link"
   },
